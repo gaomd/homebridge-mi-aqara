@@ -87,12 +87,12 @@ serverSocket.on('message', function (msg, rinfo) {
     } else if (model === 'ctrl_neutral2') {
       console.log("Step 7. Got duplex light switch:%s's heartbeat: left %s, right %s", json['sid'], data['channel_0'], data['channel_1']);
     } else if (model === 'gateway') {
-      console.log("Step 7. Got gateway:%s's heartbeat:%s with token:%s", json['sid'], json['data'], json['token']);
+      console.log("Step 7. Got Hub:%s's heartbeat:%s with token:%s", json['sid'], json['data'], json['token']);
     } else {
       console.log("Step 7. Got %s:%s's heartbeat:%s", json['model'], json['sid'], json['data']);
     }
   } else if (cmd === 'write') {
-    // Commands from udpclient.js, pass them to gateway
+    // Commands from udpclient.js, pass them to Hub
     var sid = json['sid'];
     if (!sid || !sidToPort[sid] || !sidToAddress[sid]) {
       console.log('Invalid or unknown sid in %s', msg);
