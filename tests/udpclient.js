@@ -14,7 +14,7 @@ socket.on('error', function (err) {
 
 socket.on('listening', function () {
   console.log("Demo client is listening.");
-})
+});
 
 socket.bind();
 readline.createInterface({

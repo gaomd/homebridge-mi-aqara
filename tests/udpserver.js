@@ -112,7 +112,7 @@ serverSocket.on('error', function (err) {
 serverSocket.on('listening', function () {
   console.log('Step 1. Start a UDP server, listening on port %d.', serverPort);
   serverSocket.addMembership(multicastAddress);
-})
+});
 
 console.log('Demo server, in the following steps:');
 

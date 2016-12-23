@@ -31,8 +31,8 @@ Aqara is a ZigBee gateway with a few sensors. Please see the pictures below.
             "platforms": [
             {
                 "platform": "AqaraPlatform",
-                "sid": ["6409802da3b3"],
-                "password": ["02i44k56zrgg578b"]
+                "hub_mac_address": ["6409802da3b3"],
+                "hub_password": ["02i44k56zrgg578b"]
             }]
         }
 
@@ -43,8 +43,8 @@ Aqara is a ZigBee gateway with a few sensors. Please see the pictures below.
             "platforms": [
             {
                 "platform": "AqaraPlatform",
-                "sid": ["6409802da3b3", "f0b4299a5b2b", "f0b4299a77dd"],
-                "password": ["02i44k56zrgg578b", "g250s2vtne8q9qhv", "syu3oasva3uqd5qd"]
+                "hub_mac_address": ["6409802da3b3", "f0b4299a5b2b", "f0b4299a77dd"],
+                "hub_password": ["02i44k56zrgg578b", "g250s2vtne8q9qhv", "syu3oasva3uqd5qd"]
             }]
         }
 
