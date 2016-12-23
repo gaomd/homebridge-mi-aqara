@@ -6,11 +6,11 @@ const multicastPort = 4321;
 var sidToAddress = {};
 var sidToPort = {};
 
-serverSocket.on('message', function(msg, rinfo){
+serverSocket.on('message', function (msg, rinfo) {
   console.log('recv %s(%d bytes) from client %s:%d\n', msg, msg.length, rinfo.address, rinfo.port);
   var json;
   try {
-      json = JSON.parse(msg);
+    json = JSON.parse(msg);
   } catch (e) {
     console.log('Unexpected message: %s', msg);
     return;
@@ -25,7 +25,7 @@ serverSocket.on('message', function(msg, rinfo){
     serverSocket.send(cmd, 0, cmd.length, port, address);
   } else if (cmd === 'get_id_list_ack') {
     var data = JSON.parse(json['data']);
-    for(var index in data) {
+    for (var index in data) {
       var sid = data[index];
       var response = '{"cmd":"read", "sid":"' + sid + '"}';
       // Remember this sid's address
@@ -105,11 +105,11 @@ serverSocket.on('message', function(msg, rinfo){
 });
 
 //    err - Error object, https://nodejs.org/api/errors.html
-serverSocket.on('error', function(err){
+serverSocket.on('error', function (err) {
   console.log('error, msg - %s, stack - %s\n', err.message, err.stack);
 });
 
-serverSocket.on('listening', function(){
+serverSocket.on('listening', function () {
   console.log('Step 1. Start a UDP server, listening on port %d.', serverPort);
   serverSocket.addMembership(multicastAddress);
 })
@@ -126,7 +126,7 @@ function sendWhois() {
 
 sendWhois();
 
-setInterval(function() {
+setInterval(function () {
   console.log('Step 2. Start another round.');
   sendWhois();
 }, 30000);

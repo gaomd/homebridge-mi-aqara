@@ -6,7 +6,7 @@ function generate(data) {
   sha1sum.update(data);
   var s = sha1sum.digest('hex');
   var i = -1;
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
     i += 1;
     switch (c) {
       case 'x':
