@@ -16,10 +16,10 @@ function MiAqaraAccessories(log, api) {
   this.log = log;
   this.api = api;
   this.accessories = [];
-  this.setIdToHubIdMap = {};
-  this.lastHubUpdateTime = {};
-  this.lastSetUpdateTime = {};
-  this.setAliases = {};
+  this.deviceGatewayMap = {};
+  this.lastGatewayUpdateTime = {};
+  this.lastDeviceUpdateTime = {};
+  this.deviceAliases = {};
 }
 
 // Function invoked when homebridge tries to restore cached accessory
@@ -39,25 +39,25 @@ MiAqaraAccessories.prototype.configureAccessory = function (accessory) {
   });
 
   this.accessories.push(accessory);
-  this.lastSetUpdateTime[accessory.UUID] = Date.now();
+  this.lastDeviceUpdateTime[accessory.UUID] = Date.now();
 };
 
 // How long in milliseconds we can remove an accessory when there's no update.
 // This is a little complicated:
-// First, we need to make sure Hub is online, if the Hub is offline, we do nothing.
+// First, we need to make sure Gateway is online, if the Gateway is offline, we do nothing.
 // Then, we measure the delta since last update time, if it's too long, remove it.
-const SetAutoRemoveDelta = 3600 * 1000;
-const HubAutoRemoveDelta = 24 * 3600 * 1000;
-MiAqaraAccessories.prototype.autoRemoveAccessory = function () {
+MiAqaraAccessories.prototype.removeDisconnectedAccessory = function () {
+  const deviceAutoRemoveDelta = 3600 * 1000;
+  const gatewayAutoRemoveDelta = 24 * 3600 * 1000;
   var accessoriesToRemove = [];
 
   for (var i = this.accessories.length - 1; i--;) {
     var accessory = this.accessories[i];
-    var hubId = this.setIdToHubIdMap[accessory.UUID];
-    var lastTime = this.lastSetUpdateTime[accessory.UUID];
-    var removeFromHub = hubId && ((this.lastHubUpdateTime[hubId] - lastTime) > SetAutoRemoveDelta);
+    var gatewayId = this.deviceGatewayMap[accessory.UUID];
+    var lastTime = this.lastDeviceUpdateTime[accessory.UUID];
+    var removeFromGateway = gatewayId && ((this.lastGatewayUpdateTime[gatewayId] - lastTime) > deviceAutoRemoveDelta);
 
-    if (removeFromHub || (Date.now() - lastTime) > HubAutoRemoveDelta) {
+    if (removeFromGateway || (Date.now() - lastTime) > gatewayAutoRemoveDelta) {
       this.log.debug("remove accessory %s", accessory.UUID);
       accessoriesToRemove.push(accessory);
       this.accessories.splice(i, 1);
@@ -69,13 +69,13 @@ MiAqaraAccessories.prototype.autoRemoveAccessory = function () {
   }
 };
 
-MiAqaraAccessories.prototype.setTemperatureAndHumidity = function (hubId, setId, temperature, humidity) {
+MiAqaraAccessories.prototype.updateTemperatureAndHumidity = function (gatewayId, deviceId, temperature, humidity) {
   // Temperature
-  this.findServiceAndSetValue(
-    hubId,
-    setId,
-    this.getAccessoryName('SENSOR_TEM-' + setId),
-    UUIDGen.generate('SENSOR_TEM-' + setId),
+  this.findServiceAndDeviceValue(
+    gatewayId,
+    deviceId,
+    this.getAccessoryName('SENSOR_TEM-' + deviceId),
+    UUIDGen.generate('SENSOR_TEM-' + deviceId),
     Accessory.Categories.SENSOR,
     Service.TemperatureSensor,
     Characteristic.CurrentTemperature,
@@ -83,11 +83,11 @@ MiAqaraAccessories.prototype.setTemperatureAndHumidity = function (hubId, setId,
     null); // No commander
 
   // Humidity
-  this.findServiceAndSetValue(
-    hubId,
-    setId,
-    this.getAccessoryName('SENSOR_HUM-' + setId),
-    UUIDGen.generate('SENSOR_HUM-' + setId),
+  this.findServiceAndDeviceValue(
+    gatewayId,
+    deviceId,
+    this.getAccessoryName('SENSOR_HUM-' + deviceId),
+    UUIDGen.generate('SENSOR_HUM-' + deviceId),
     Accessory.Categories.SENSOR,
     Service.HumiditySensor,
     Characteristic.CurrentRelativeHumidity,
@@ -96,12 +96,12 @@ MiAqaraAccessories.prototype.setTemperatureAndHumidity = function (hubId, setId,
 };
 
 // Motion sensor
-MiAqaraAccessories.prototype.setMotion = function (hubId, setId, motionDetected) {
-  this.findServiceAndSetValue(
-    hubId,
-    setId,
-    this.getAccessoryName('SENSOR_MOTION-' + setId),
-    UUIDGen.generate('SENSOR_MOTION-' + setId),
+MiAqaraAccessories.prototype.updateMotion = function (gatewayId, deviceId, motionDetected) {
+  this.findServiceAndDeviceValue(
+    gatewayId,
+    deviceId,
+    this.getAccessoryName('SENSOR_MOTION-' + deviceId),
+    UUIDGen.generate('SENSOR_MOTION-' + deviceId),
     Accessory.Categories.SENSOR,
     Service.MotionSensor,
     Characteristic.MotionDetected,
@@ -110,12 +110,12 @@ MiAqaraAccessories.prototype.setMotion = function (hubId, setId, motionDetected)
 };
 
 // Contact sensor
-MiAqaraAccessories.prototype.setContact = function (hubId, setId, contacted) {
-  this.findServiceAndSetValue(
-    hubId,
-    setId,
-    this.getAccessoryName('SENSOR_CONTACT-' + setId),
-    UUIDGen.generate('SENSOR_CONTACT-' + setId),
+MiAqaraAccessories.prototype.updateContact = function (gatewayId, deviceId, contacted) {
+  this.findServiceAndDeviceValue(
+    gatewayId,
+    deviceId,
+    this.getAccessoryName('SENSOR_CONTACT-' + deviceId),
+    UUIDGen.generate('SENSOR_CONTACT-' + deviceId),
     Accessory.Categories.SENSOR,
     Service.ContactSensor,
     Characteristic.ContactSensorState,
@@ -124,35 +124,35 @@ MiAqaraAccessories.prototype.setContact = function (hubId, setId, contacted) {
 };
 
 // Light switch
-MiAqaraAccessories.prototype.setLightSwitch = function (hubId, setId, sideIdentifier, on, commander) {
-  if (this.setAliases["SWITCH-" + setId + "-" + sideIdentifier]
-    && this.setAliases["SWITCH-" + setId + "-" + sideIdentifier].category_override
-    && this.setAliases["SWITCH-" + setId + "-" + sideIdentifier].service_override) {
-    this.findServiceAndSetValue(
-      hubId,
-      setId,
-      this.getAccessoryName("SWITCH-" + setId + "-" + sideIdentifier),
-      UUIDGen.generate("SWITCH-" + setId + "-" + sideIdentifier),
+MiAqaraAccessories.prototype.updateLightSwitch = function (gatewayId, deviceId, sideIdentifier, on, commander) {
+  if (this.deviceAliases["SWITCH-" + deviceId + "-" + sideIdentifier]
+    && this.deviceAliases["SWITCH-" + deviceId + "-" + sideIdentifier].category_override
+    && this.deviceAliases["SWITCH-" + deviceId + "-" + sideIdentifier].service_override) {
+    this.findServiceAndDeviceValue(
+      gatewayId,
+      deviceId,
+      this.getAccessoryName("SWITCH-" + deviceId + "-" + sideIdentifier),
+      UUIDGen.generate("SWITCH-" + deviceId + "-" + sideIdentifier),
       Accessory.Categories["FAN"],
       Service["Fan"],
       Characteristic.On,
       on,
       commander);
 
-    // this.log(this.setAliases["SWITCH-" + setId + "-" + sideIdentifier].category_override);
+    // this.log(this.deviceAliases["SWITCH-" + deviceId + "-" + sideIdentifier].category_override);
     // this.log(Accessory.Categories);
     // this.log(Accessory.Categories["FAN"]);
-    // this.log(Accessory.Categories[this.setAliases["SWITCH-" + setId + "-" + sideIdentifier].category_override]);
+    // this.log(Accessory.Categories[this.deviceAliases["SWITCH-" + deviceId + "-" + sideIdentifier].category_override]);
     // this.log(Service.Fan);
-    // this.log(Service[this.setAliases["SWITCH-" + setId + "-" + sideIdentifier].service_override]);
+    // this.log(Service[this.deviceAliases["SWITCH-" + deviceId + "-" + sideIdentifier].service_override]);
     return;
   }
 
-  this.findServiceAndSetValue(
-    hubId,
-    setId,
-    this.getAccessoryName("SWITCH-" + setId + "-" + sideIdentifier),
-    UUIDGen.generate("SWITCH-" + setId + "-" + sideIdentifier),
+  this.findServiceAndDeviceValue(
+    gatewayId,
+    deviceId,
+    this.getAccessoryName("SWITCH-" + deviceId + "-" + sideIdentifier),
+    UUIDGen.generate("SWITCH-" + deviceId + "-" + sideIdentifier),
     Accessory.Categories.LIGHTBULB,
     Service.Lightbulb,
     Characteristic.On,
@@ -161,12 +161,12 @@ MiAqaraAccessories.prototype.setLightSwitch = function (hubId, setId, sideIdenti
 };
 
 // Plug
-MiAqaraAccessories.prototype.setPlugSwitch = function (hubId, setId, on, commander) {
-  this.findServiceAndSetValue(
-    hubId,
-    setId,
-    this.getAccessoryName("OUTLET-" + setId),
-    UUIDGen.generate("OUTLET-" + setId),
+MiAqaraAccessories.prototype.updatePlugSwitch = function (gatewayId, deviceId, on, commander) {
+  this.findServiceAndDeviceValue(
+    gatewayId,
+    deviceId,
+    this.getAccessoryName("OUTLET-" + deviceId),
+    UUIDGen.generate("OUTLET-" + deviceId),
     Accessory.Categories.OUTLET,
     Service.Outlet,
     Characteristic.On,
@@ -193,23 +193,23 @@ MiAqaraAccessories.prototype.getAccessoryWellKnownName = function (type) {
   }
 };
 
-MiAqaraAccessories.prototype.findServiceAndSetValue = function (hubId, setId, accessoryName,
+MiAqaraAccessories.prototype.findServiceAndDeviceValue = function (gatewayId, deviceId, accessoryName,
                                                                 accessoryUUID, accessoryCategory,
                                                                 serviceType,
                                                                 characteristicType, characteristicValue,
                                                                 commander) {
   this.log("TESTTEST " + accessoryName);
   if (!accessoryName) {
-    // Use last four characters of setId as service name
-    // accessoryName = setId.substring(setId.length - 4);
+    // Use last four characters of deviceId as service name
+    // accessoryName = deviceId.substring(deviceId.length - 4);
   }
   // this.log("TESTTEST " + accessoryName);
   var serviceName = accessoryName;
 
-  // Remember Hub/Set update time
-  this.lastHubUpdateTime[hubId] = Date.now();
-  this.lastSetUpdateTime[accessoryUUID] = Date.now();
-  this.setIdToHubIdMap[accessoryUUID] = hubId;
+  // Remember Gateway/Device update time
+  this.lastGatewayUpdateTime[gatewayId] = Date.now();
+  this.lastDeviceUpdateTime[accessoryUUID] = Date.now();
+  this.deviceGatewayMap[accessoryUUID] = gatewayId;
 
   var that = this;
   var newAccessory = null;
@@ -226,16 +226,16 @@ MiAqaraAccessories.prototype.findServiceAndSetValue = function (hubId, setId, ac
     newAccessory = new PlatformAccessory(accessoryName, accessoryUUID, accessoryCategory);
     newAccessory.reachable = true;
 
-    // Set serial number so we can track it later
+    // Device serial number so we can track it later
     newAccessory.getService(Service.AccessoryInformation)
       .setCharacteristic(Characteristic.Manufacturer, "Aqara")
       .setCharacteristic(Characteristic.Model, this.getAccessoryWellKnownName(serviceType))
-      .setCharacteristic(Characteristic.SerialNumber, setId);
+      .setCharacteristic(Characteristic.SerialNumber, deviceId);
 
     service = newAccessory.addService(serviceType, serviceName);
     this.api.registerPlatformAccessories("homebridge-mi-aqara", "MiAqara", [newAccessory]);
     newAccessory.on('identify', function (paired, callback) {
-      that.log(newAccessory.displayName, "Identify!!!");
+      that.log(newAccessory.displayName, "...Identified");
       callback();
     });
 
@@ -251,7 +251,7 @@ MiAqaraAccessories.prototype.findServiceAndSetValue = function (hubId, setId, ac
   var characteristic = service.getCharacteristic(characteristicType);
 
   if (characteristic) {
-    // that.log("Set %s %s", serviceName, characteristicValue);
+    // that.log("Device %s %s", serviceName, characteristicValue);
     characteristic.updateValue(characteristicValue);
 
     // Send command back once value is changed
@@ -267,5 +267,5 @@ MiAqaraAccessories.prototype.findServiceAndSetValue = function (hubId, setId, ac
 };
 
 MiAqaraAccessories.prototype.getAccessoryName = function (accessoryId) {
-  return this.setAliases[accessoryId].name || accessoryId;
+  return this.deviceAliases[accessoryId].name || accessoryId;
 };

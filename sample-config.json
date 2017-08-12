@@ -2,9 +2,9 @@
     "platforms": [
         {
             "platform": "MiAqara",
-            "hub_mac_address": ["112233445566"],
-            "hub_password": ["password"],
-            "set_overrides": {
+            "gateway_mac_addresses": ["11:22:33:44:55:66"],
+            "gateway_passwords": ["password"],
+            "device_overrides": {
                 "OUTLET-{ID1}":{"name": "厨房侧灯"},
                 "SWITCH-{ID2}-L":{"name": "厨房灯"},
                 "SWITCH-{ID2}-R":{"name": "卧室灯"},
