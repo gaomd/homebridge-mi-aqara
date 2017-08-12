@@ -16,7 +16,7 @@ function MiAqaraAccessories(log, api) {
   this.log = log;
   this.api = api;
   this.accessories = [];
-  this.deviceGatewayMap = {};
+  this.deviceToGatewayId = {};
   this.lastGatewayUpdateTime = {};
   this.lastDeviceUpdateTime = {};
   this.deviceAliases = {};
@@ -44,7 +44,7 @@ MiAqaraAccessories.prototype.configureAccessory = function (accessory) {
 
 // How long in milliseconds we can remove an accessory when there's no update.
 // This is a little complicated:
-// First, we need to make sure Gateway is online, if the Gateway is offline, we do nothing.
+// First, we need to make sure gateway is online, if the gateway is offline, we do nothing.
 // Then, we measure the delta since last update time, if it's too long, remove it.
 MiAqaraAccessories.prototype.removeDisconnectedAccessory = function () {
   const deviceAutoRemoveDelta = 3600 * 1000;
@@ -53,7 +53,7 @@ MiAqaraAccessories.prototype.removeDisconnectedAccessory = function () {
 
   for (var i = this.accessories.length - 1; i--;) {
     var accessory = this.accessories[i];
-    var gatewayId = this.deviceGatewayMap[accessory.UUID];
+    var gatewayId = this.deviceToGatewayId[accessory.UUID];
     var lastTime = this.lastDeviceUpdateTime[accessory.UUID];
     var removeFromGateway = gatewayId && ((this.lastGatewayUpdateTime[gatewayId] - lastTime) > deviceAutoRemoveDelta);
 
@@ -206,10 +206,10 @@ MiAqaraAccessories.prototype.findServiceAndDeviceValue = function (gatewayId, de
   // this.log("TESTTEST " + accessoryName);
   var serviceName = accessoryName;
 
-  // Remember Gateway/Device update time
+  // Remember gateway/device update time
   this.lastGatewayUpdateTime[gatewayId] = Date.now();
   this.lastDeviceUpdateTime[accessoryUUID] = Date.now();
-  this.deviceGatewayMap[accessoryUUID] = gatewayId;
+  this.deviceToGatewayId[accessoryUUID] = gatewayId;
 
   var that = this;
   var newAccessory = null;
@@ -226,7 +226,7 @@ MiAqaraAccessories.prototype.findServiceAndDeviceValue = function (gatewayId, de
     newAccessory = new PlatformAccessory(accessoryName, accessoryUUID, accessoryCategory);
     newAccessory.reachable = true;
 
-    // Device serial number so we can track it later
+    // device serial number so we can track it later
     newAccessory.getService(Service.AccessoryInformation)
       .setCharacteristic(Characteristic.Manufacturer, "Aqara")
       .setCharacteristic(Characteristic.Model, this.getAccessoryWellKnownName(serviceType))
@@ -251,7 +251,7 @@ MiAqaraAccessories.prototype.findServiceAndDeviceValue = function (gatewayId, de
   var characteristic = service.getCharacteristic(characteristicType);
 
   if (characteristic) {
-    // that.log("Device %s %s", serviceName, characteristicValue);
+    // that.log("device %s %s", serviceName, characteristicValue);
     characteristic.updateValue(characteristicValue);
 
     // Send command back once value is changed
