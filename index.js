@@ -1,3 +1,3 @@
 module.exports = function (homebridge) {
-  require('./lib/AqaraPlatform')(homebridge);
+  require('./platforms/MiAqara')(homebridge);
 };

@@ -9,10 +9,10 @@ module.exports = function (homebridge) {
   Characteristic = homebridge.hap.Characteristic;
   UUIDGen = homebridge.hap.uuid;
 
-  return AqaraAccessoryFactory;
+  return MiAqaraAccessories;
 };
 
-function AqaraAccessoryFactory(log, api) {
+function MiAqaraAccessories(log, api) {
   this.log = log;
   this.api = api;
   this.accessories = [];
@@ -25,7 +25,7 @@ function AqaraAccessoryFactory(log, api) {
 // Function invoked when homebridge tries to restore cached accessory
 // Developer can configure accessory at here (like setup event handler)
 // Update current value
-AqaraAccessoryFactory.prototype.configureAccessory = function (accessory) {
+MiAqaraAccessories.prototype.configureAccessory = function (accessory) {
   // this.log(accessory.displayName, "Configure Accessory");
   var that = this;
 
@@ -48,7 +48,7 @@ AqaraAccessoryFactory.prototype.configureAccessory = function (accessory) {
 // Then, we measure the delta since last update time, if it's too long, remove it.
 const SetAutoRemoveDelta = 3600 * 1000;
 const HubAutoRemoveDelta = 24 * 3600 * 1000;
-AqaraAccessoryFactory.prototype.autoRemoveAccessory = function () {
+MiAqaraAccessories.prototype.autoRemoveAccessory = function () {
   var accessoriesToRemove = [];
 
   for (var i = this.accessories.length - 1; i--;) {
@@ -65,11 +65,11 @@ AqaraAccessoryFactory.prototype.autoRemoveAccessory = function () {
   }
 
   if (accessoriesToRemove.length > 0) {
-    this.api.unregisterPlatformAccessories("homebridge-aqara", "AqaraPlatform", accessoriesToRemove);
+    this.api.unregisterPlatformAccessories("homebridge-mi-aqara", "MiAqara", accessoriesToRemove);
   }
 };
 
-AqaraAccessoryFactory.prototype.setTemperatureAndHumidity = function (hubId, setId, temperature, humidity) {
+MiAqaraAccessories.prototype.setTemperatureAndHumidity = function (hubId, setId, temperature, humidity) {
   // Temperature
   this.findServiceAndSetValue(
     hubId,
@@ -96,7 +96,7 @@ AqaraAccessoryFactory.prototype.setTemperatureAndHumidity = function (hubId, set
 };
 
 // Motion sensor
-AqaraAccessoryFactory.prototype.setMotion = function (hubId, setId, motionDetected) {
+MiAqaraAccessories.prototype.setMotion = function (hubId, setId, motionDetected) {
   this.findServiceAndSetValue(
     hubId,
     setId,
@@ -110,7 +110,7 @@ AqaraAccessoryFactory.prototype.setMotion = function (hubId, setId, motionDetect
 };
 
 // Contact sensor
-AqaraAccessoryFactory.prototype.setContact = function (hubId, setId, contacted) {
+MiAqaraAccessories.prototype.setContact = function (hubId, setId, contacted) {
   this.findServiceAndSetValue(
     hubId,
     setId,
@@ -124,7 +124,7 @@ AqaraAccessoryFactory.prototype.setContact = function (hubId, setId, contacted) 
 };
 
 // Light switch
-AqaraAccessoryFactory.prototype.setLightSwitch = function (hubId, setId, sideIdentifier, on, commander) {
+MiAqaraAccessories.prototype.setLightSwitch = function (hubId, setId, sideIdentifier, on, commander) {
   if (this.setAliases["SWITCH-" + setId + "-" + sideIdentifier]
     && this.setAliases["SWITCH-" + setId + "-" + sideIdentifier].category_override
     && this.setAliases["SWITCH-" + setId + "-" + sideIdentifier].service_override) {
@@ -161,7 +161,7 @@ AqaraAccessoryFactory.prototype.setLightSwitch = function (hubId, setId, sideIde
 };
 
 // Plug
-AqaraAccessoryFactory.prototype.setPlugSwitch = function (hubId, setId, on, commander) {
+MiAqaraAccessories.prototype.setPlugSwitch = function (hubId, setId, on, commander) {
   this.findServiceAndSetValue(
     hubId,
     setId,
@@ -174,7 +174,7 @@ AqaraAccessoryFactory.prototype.setPlugSwitch = function (hubId, setId, on, comm
     commander);
 };
 
-AqaraAccessoryFactory.prototype.getAccessoryWellKnownName = function (type) {
+MiAqaraAccessories.prototype.getAccessoryWellKnownName = function (type) {
   switch (type) {
     case Service.Lightbulb:
       return "(Light) Switch";
@@ -193,11 +193,11 @@ AqaraAccessoryFactory.prototype.getAccessoryWellKnownName = function (type) {
   }
 };
 
-AqaraAccessoryFactory.prototype.findServiceAndSetValue = function (hubId, setId, accessoryName,
-                                                                   accessoryUUID, accessoryCategory,
-                                                                   serviceType,
-                                                                   characteristicType, characteristicValue,
-                                                                   commander) {
+MiAqaraAccessories.prototype.findServiceAndSetValue = function (hubId, setId, accessoryName,
+                                                                accessoryUUID, accessoryCategory,
+                                                                serviceType,
+                                                                characteristicType, characteristicValue,
+                                                                commander) {
   this.log("TESTTEST " + accessoryName);
   if (!accessoryName) {
     // Use last four characters of setId as service name
@@ -233,7 +233,7 @@ AqaraAccessoryFactory.prototype.findServiceAndSetValue = function (hubId, setId,
       .setCharacteristic(Characteristic.SerialNumber, setId);
 
     service = newAccessory.addService(serviceType, serviceName);
-    this.api.registerPlatformAccessories("homebridge-aqara", "AqaraPlatform", [newAccessory]);
+    this.api.registerPlatformAccessories("homebridge-mi-aqara", "MiAqara", [newAccessory]);
     newAccessory.on('identify', function (paired, callback) {
       that.log(newAccessory.displayName, "Identify!!!");
       callback();
@@ -266,6 +266,6 @@ AqaraAccessoryFactory.prototype.findServiceAndSetValue = function (hubId, setId,
   }
 };
 
-AqaraAccessoryFactory.prototype.getAccessoryName = function (accessoryId) {
+MiAqaraAccessories.prototype.getAccessoryName = function (accessoryId) {
   return this.setAliases[accessoryId].name || accessoryId;
 };

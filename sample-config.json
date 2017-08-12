@@ -1,7 +1,7 @@
 {
     "platforms": [
         {
-            "platform": "AqaraPlatform",
+            "platform": "MiAqara",
             "hub_mac_address": ["112233445566"],
             "hub_password": ["password"],
             "set_overrides": {

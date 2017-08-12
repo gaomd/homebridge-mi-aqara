@@ -9,16 +9,16 @@ const serverPort = 9898;
 var AqaraAccessoryFactory;
 
 module.exports = function (homebridge) {
-  AqaraAccessoryFactory = require('./AqaraAccessoryFactory')(homebridge);
+  AqaraAccessoryFactory = require('./MiAqaraAccessories')(homebridge);
 
   // Register
-  homebridge.registerPlatform("homebridge-aqara", "AqaraPlatform", AqaraPlatform, true);
+  homebridge.registerPlatform("homebridge-mi-aqara", "MiAqara", MiAqara, true);
 };
 
 // Platform constructor
 // config may be null
 // api may be null if launched from old Homebridge version
-function AqaraPlatform(log, config, api) {
+function MiAqara(log, config, api) {
   // Initialize
   this.log = log;
   this.factory = new AqaraAccessoryFactory(log, api);
@@ -69,7 +69,7 @@ function AqaraPlatform(log, config, api) {
   this.doRestThings(api);
 }
 
-AqaraPlatform.prototype.loadConfig = function (config) {
+MiAqara.prototype.loadConfig = function (config) {
   this.setOverrides = config['set_overrides'] || {};
 
   // Load cipher password for each Hub from Homebridge's config.json
@@ -85,7 +85,7 @@ AqaraPlatform.prototype.loadConfig = function (config) {
   }
 };
 
-AqaraPlatform.prototype.doRestThings = function (api) {
+MiAqara.prototype.doRestThings = function (api) {
   if (api) {
     // Save the API object as plugin needs to register new accessory via this object.
     this.api = api;
@@ -112,7 +112,7 @@ AqaraPlatform.prototype.doRestThings = function (api) {
   }
 };
 
-AqaraPlatform.prototype.startServer = function () {
+MiAqara.prototype.startServer = function () {
   var that = this;
 
   // Initialize a server socket for Aqara Hubs.
@@ -134,7 +134,7 @@ AqaraPlatform.prototype.startServer = function () {
 };
 
 // Parse message which is sent from Aqara Hubs
-AqaraPlatform.prototype.parseMessage = function (message, remote) {
+MiAqara.prototype.parseMessage = function (message, remote) {
   var platform = this;
   // platform.log.debug('recv %s(%d bytes) from client %s:%d\n', message, message.length, remote.address, remote.port);
   var response;
@@ -192,7 +192,7 @@ AqaraPlatform.prototype.parseMessage = function (message, remote) {
 // Function invoked when Homebridge tries to restore cached accessory
 // Developer can configure accessory at here (like setup event handler)
 // Update current value
-AqaraPlatform.prototype.configureAccessory = function (accessory) {
+MiAqara.prototype.configureAccessory = function (accessory) {
   this.factory.configureAccessory(accessory);
 };
 

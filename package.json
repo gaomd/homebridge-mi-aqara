@@ -1,17 +1,17 @@
 {
-  "name": "homebridge-aqara",
+  "name": "homebridge-mi-aqara",
   "version": "0.1.6",
-  "description": "Aqara plugin for homebridge: https://github.com/nfarina/homebridge",
+  "description": "Mi Aqara plugin for homebridge: https://github.com/nfarina/homebridge",
   "license": "ISC",
   "keywords": [
     "homebridge-plugin"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/snOOrz/homebridge-aqara"
+    "url": "https://github.com/gaomd/homebridge-mi-aqara"
   },
   "bugs": {
-    "url": "https://github.com/snOOrz/homebridge-aqara/issues"
+    "url": "https://github.com/gaomd/homebridge-mi-aqara/issues"
   },
   "engines": {
     "node": ">=0.12.0",
