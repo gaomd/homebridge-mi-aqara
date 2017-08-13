@@ -3,11 +3,19 @@ const server = dgram.createSocket('udp4');
 const serverPort = 9898;
 const multicastAddress = '224.0.0.50';
 const multicastPort = 4321;
-const crypto = require('crypto');
-const iv = Buffer.from([0x17, 0x99, 0x6d, 0x09, 0x3d, 0x28, 0xdd, 0xb3, 0xba, 0x69, 0x5a, 0x2e, 0x6f, 0x58, 0x56, 0x2e]);
-const inherits = require('util').inherits;
+
+var Accessory, PlatformAccessory, Service, Characteristic, UUID;
+var MiAqaraOutlet;
 
 module.exports = function (homebridge) {
+  Accessory = homebridge.hap.Accessory;
+  PlatformAccessory = homebridge.platformAccessory;
+  Service = homebridge.hap.Service;
+  Characteristic = homebridge.hap.Characteristic;
+  UUID = homebridge.hap.uuid;
+
+  MiAqaraOutlet = require("./devices/outlet")(Accessory, PlatformAccessory, Service, Characteristic, UUID);
+
   homebridge.registerPlatform("homebridge-mi-aqara", "MiAqara", MiAqara);
 };
 
@@ -22,6 +30,12 @@ function MiAqara(log, config, api) {
   // Save the API object as plugin needs to register new accessory via this object.
   this.api = api;
 
+  // TODO: pending organize
+  this.accessories = [];
+  this.deviceToGatewayId = {};
+  this.lastGatewayUpdateTime = {};
+  this.lastDeviceUpdateTime = {};
+
   // Record ID/Password of gateways
   this.gatewayCredentials = {};
 
@@ -30,6 +44,10 @@ function MiAqara(log, config, api) {
 
   // Record gateway ID/Address/Port the devices are under
   this.devices = {};
+
+  this.accessories = {};
+
+  this.onlineDevices = {};
 
   this.deviceOverrides = {};
 
@@ -42,13 +60,14 @@ function MiAqara(log, config, api) {
     "OUTLET": "plug"
   };
 
-  this.deviceModelManagers = {
-    'sensor_ht': new TemperatureAndHumidityParser(this),  // 温湿度传感器
-    'motion': new MotionParser(this),                     // 人体传感器
-    'magnet': new ContactParser(this),                    // 门窗传感器
-    'ctrl_neutral1': new LightSwitchParser(this),         // 墙壁开关（单键）
-    'ctrl_neutral2': new DuplexLightSwitchParser(this),   // 墙壁开关（双键）
-    'plug': new PlugSwitchParser(this)                    // 智能插座
+  this.deviceClasses = {
+    // 'sensor_ht': new TemperatureAndHumidityParser(this),  // 温湿度传感器
+    // 'motion': new MotionParser(this),                     // 人体传感器
+    // 'magnet': new ContactParser(this),                    // 门窗传感器
+    // 'ctrl_neutral1': new LightSwitchParser(this),         // 墙壁开关（单键）
+    // 'ctrl_neutral2': new DuplexLightSwitchParser(this),   // 墙壁开关（双键）
+    // 'plug': new PlugSwitchParser(this)                    // 智能插座
+    'plug': MiAqaraOutlet   // 智能插座
   };
 
   // Load gatewayCredentials from config.json
@@ -57,12 +76,13 @@ function MiAqara(log, config, api) {
   // Start UDP server to communicate with gateways
   this.startServer();
 
-  if (!api) {
+  if (!this.api) {
     this.log.error("Your Homebridge is too old, please consider upgrade!");
   }
 
   // Keep discovering gateways every 300 seconds
   this.api.on('didFinishLaunching', function () {
+    // Send whois to discovery Aqara gateways and resend every 300 seconds
     platform.queryGateway("whois");
 
     setInterval(function () {
@@ -80,7 +100,7 @@ MiAqara.prototype.parseConfig = function (config) {
   if (gatewayMacAddresses && gatewayPasswords) {
     for (var index in gatewayPasswords) {
       if (gatewayPasswords.hasOwnProperty(index)) {
-        this.gatewayCredentials[gatewayMacAddresses[index].replace(":", "").toLowerCase()] = gatewayPasswords[index];
+        this.gatewayCredentials[gatewayMacAddresses[index].replace(/:/g, "").toLowerCase()] = gatewayPasswords[index];
       }
     }
   }
@@ -92,7 +112,7 @@ MiAqara.prototype.scheduleDeviceAutoRemoval = function () {
   var deviceSync = this.deviceSync;
   // Check removed accessory every half an hour.
   setInterval(function () {
-    deviceSync.removeDisconnectedAccessory();
+    deviceSync.removeOfflineAccessory();
   }, 1800 * 1000);
 };
 
@@ -122,23 +142,18 @@ MiAqara.prototype.queryGateway = function (command, parameters, port, ip) {
     parameters = {};
   }
   var query = Object.assign(parameters, {cmd: command});
+  // this.log("queryGateway, data:", "`" + JSON.stringify(query) + "`", ", address:", ip || multicastAddress, ", port:", port || multicastPort);
   server.send(JSON.stringify(query), port || multicastPort, ip || multicastAddress);
-};
-
-MiAqara.prototype.rememberGatewayToken = function (gatewayId, token) {
-  this.gateways[gatewayId] = {
-    token: token
-  };
 };
 
 // Parse messages sent from gateways
 MiAqara.prototype.processGatewayEvent = function (event, gatewayIp) {
-  var platform = this;
-  // platform.log.debug('recv %s(%d bytes) from client %s:%d\n', event, event.length, gatewayIp.address, gatewayIp.port);
+  // this.log.debug("Received %s (%d bytes) from client %s:%d\n", event, event.length, gatewayIp.address, gatewayIp.port);
+
   try {
     event = JSON.parse(event);
   } catch (e) {
-    platform.log.error("Invalid JSON %s", event);
+    this.log.error("Invalid JSON %s", event);
 
     return;
   }
@@ -146,7 +161,11 @@ MiAqara.prototype.processGatewayEvent = function (event, gatewayIp) {
   var command = event['cmd'];
 
   if (command === 'iam') {
-    platform.queryGateway("get_id_list", null, event["ip"], event["port"]);
+    this.queryGateway("get_id_list", null, event["port"], event["ip"]);
+  } else if (command === 'heartbeat') {
+    if (event['model'] === 'gateway') {
+      this.rememberGatewayToken(event["sid"], event["token"]);
+    }
   } else if (command === 'get_id_list_ack') {
     var gatewayId = event['sid'];
 
@@ -168,25 +187,143 @@ MiAqara.prototype.processGatewayEvent = function (event, gatewayIp) {
         this.queryGateway("read", {sid: deviceId}, gatewayIp.port, gatewayIp.address);
       }
     }
-  } else if (command === 'heartbeat') {
-    if (event['model'] === 'gateway') {
-      this.rememberGatewayToken(event["sid"], event["token"]);
+  } else if (command === "read_ack") {
+    var deviceModel = event['model'];
+
+    if (deviceModel in this.deviceClasses) {
+      var instanceKey = deviceModel + ":" + event["sid"];
+      if (!(instanceKey in this.onlineDevices)) {
+        this.onlineDevices[instanceKey] = new this.deviceClasses[deviceModel](this, event["sid"], event["model"]);
+      }
+      this.onlineDevices[instanceKey].processDeviceReportEvent(event, gatewayIp);
     }
   } else if (command === 'write_ack') {
     ;
   } else {
-    var deviceModel = event['model'];
-
-    if (deviceModel in this.deviceModelManagers) {
-      var manager = this.deviceModelManagers[deviceModel];
-      manager.initFromDeviceReportEvent(event, gatewayIp);
-    }
+    ;
   }
 };
 
-// Function invoked when Homebridge tries to restore cached accessory
+MiAqara.prototype.rememberGatewayToken = function (gatewayId, token) {
+  this.gateways[gatewayId] = {
+    token: token
+  };
+};
+
+MiAqara.prototype.findGatewayByDevice = function (deviceId) {
+  return this.devices[deviceId].underGateway;
+};
+
+MiAqara.prototype.getAccessoryCommonName = function (accessoryType) {
+  switch (accessoryType) {
+    case Service.Lightbulb:
+      return "(Light) Switch";
+    case Service.Outlet:
+      return "Outlet";
+    case Service.TemperatureSensor:
+      return "Temperature Sensor";
+    case Service.HumiditySensor:
+      return "Humidity Sensor";
+    case Service.ContactSensor:
+      return "Contact Sensor";
+    case Service.MotionSensor:
+      return "Motion Sensor";
+    default:
+      return "Unknown";
+  }
+};
+
+// How long in milliseconds we can remove an accessory when there's no update.
+// This is a little complicated:
+// First, we need to make sure gateway is online, if the gateway is offline, we do nothing.
+// Then, we measure the delta since last update time, if it's too long, remove it.
+MiAqara.prototype.removeOfflineAccessory = function () {
+  return;
+  const deviceAutoRemoveDelta = 3600 * 1000;
+  const gatewayAutoRemoveDelta = 24 * 3600 * 1000;
+  var accessoriesToRemove = [];
+
+  for (var i = this.accessories.length - 1; i--;) {
+    var accessory = this.accessories[i];
+    var gatewayId = this.deviceToGatewayId[accessory.UUID];
+    var lastTime = this.lastDeviceUpdateTime[accessory.UUID];
+    var removeFromGateway = gatewayId && ((this.lastGatewayUpdateTime[gatewayId] - lastTime) > deviceAutoRemoveDelta);
+
+    if (removeFromGateway || (Date.now() - lastTime) > gatewayAutoRemoveDelta) {
+      this.log.debug("remove accessory %s", accessory.UUID);
+      accessoriesToRemove.push(accessory);
+      this.accessories.splice(i, 1);
+    }
+  }
+
+  if (accessoriesToRemove.length > 0) {
+    this.api.unregisterPlatformAccessories("homebridge-mi-aqara", "MiAqara", accessoriesToRemove);
+  }
+};
+
+MiAqara.prototype.registerHomeKitAccessory = function (deviceIdAsSerialNumber,
+                                                       accessoryDisplayName,
+                                                       accessoryUUID,
+                                                       accessoryCategory,
+                                                       accessoryServiceType,
+                                                       characteristicType) {
+  // Remember gateway/device update time
+  // this.lastGatewayUpdateTime[gatewayId] = Date.now();
+  // this.lastDeviceUpdateTime[accessoryUUID] = Date.now();
+  // this.deviceToGatewayId[accessoryUUID] = gatewayId;
+
+  var platform = this;
+  var serviceName = accessoryDisplayName;
+  var service, accessory, characteristic;
+
+  if (this.accessories[accessoryUUID]) {
+    accessory = this.accessories[accessoryUUID];
+  } else {
+    // Build a new accessory
+    accessory = new PlatformAccessory(accessoryDisplayName, accessoryUUID, accessoryCategory);
+    accessory.reachable = true;
+    accessory.getService(Service.AccessoryInformation)
+      .setCharacteristic(Characteristic.Manufacturer, "Mi Aqara")
+      .setCharacteristic(Characteristic.Model, this.getAccessoryCommonName(accessoryServiceType))
+      .setCharacteristic(Characteristic.SerialNumber, deviceIdAsSerialNumber);
+    accessory.addService(accessoryServiceType, serviceName);
+
+    this.api.registerPlatformAccessories("homebridge-mi-aqara", "MiAqara", [accessory]);
+    accessory.on('identify', function (paired, callback) {
+      platform.log(accessory.displayName, "...Identified");
+      callback();
+    });
+
+    this.accessories[accessory.UUID] = accessory;
+  }
+
+  // Add Characteristic Set Event Listener
+  service = accessory.getService(accessoryServiceType);
+  characteristic = service.getCharacteristic(characteristicType);
+  if (!characteristic) {
+    platform.log("Service has no specified characteristic");
+  }
+
+  return accessory;
+};
+
+// Function invoked when homebridge tries to restore cached accessory
 // Developer can configure accessory at here (like setup event handler)
 // Update current value
 MiAqara.prototype.configureAccessory = function (accessory) {
-  this.deviceSync.configureAccessory(accessory);
+  var platform = this;
+
+  platform.log("Try to restore cached accessory: ", accessory.displayName);
+
+  // set the accessory to reachable if plugin can currently process the accessory
+  // otherwise set to false and update the reachability later by invoking
+  // accessory.updateReachability()
+  accessory.reachable = true;
+  accessory.on('identify', function (paired, callback) {
+    platform.log("Accessory identified:", accessory.displayName);
+    callback();
+  });
+
+  this.accessories[accessory.UUID] = accessory;
+  this.lastDeviceUpdateTime[accessory.UUID] = Date.now();
 };
