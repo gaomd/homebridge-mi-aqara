@@ -1,59 +1,56 @@
+"use strict";
 
-// Light switch data parser
-LightSwitchParser = function (platform) {
-  this.init(platform);
-  this.commanders = {};
+var SwitchCommander = require("../commanders/switch-commander");
+var Accessory, PlatformAccessory, Service, Characteristic, UUID;
+var AccessoryManager;
+
+var MiAqaraDualSwitch = function (platform, deviceId, deviceModel) {
+  this.platform = platform;
+  this.deviceId = deviceId;
+  this.gateway = platform.findGatewayByDevice(this.deviceId);
+  this.accessories = [];
+  this.accessories[0] = new AccessoryManager(
+    platform,
+    deviceId + "-L",
+    Accessory.Categories.LIGHTBULB,
+    Service.Lightbulb,
+    new SwitchCommander(this.platform, this.deviceId, deviceModel, 'channel_0')
+  );
+  this.accessories[1] = new AccessoryManager(
+    platform,
+    deviceId + "-R",
+    Accessory.Categories.LIGHTBULB,
+    Service.Lightbulb,
+    new SwitchCommander(this.platform, this.deviceId, deviceModel, 'channel_1')
+  );
 };
 
-inherits(LightSwitchParser, BaseParser);
+MiAqaraDualSwitch.prototype.processDeviceReportEvent = function (event, gatewayIp) {
+  var report = JSON.parse(event['data']);
 
-// Duplex light switch data parser
-DuplexLightSwitchParser = function (platform) {
-  this.init(platform);
-  this.commanders0 = {};
-  this.commanders1 = {};
-};
+  // channel_0/1 has 3 states: on, off, unknown.
+  if (report['channel_0'] === 'unknown' || report["channel_1"] === "unknown") {
+    this.platform.log.warn("ignore unknown state: %s:%s.", event['model'], this.deviceId);
+    return;
+  }
 
-inherits(DuplexLightSwitchParser, BaseParser);
+  if (report["channel_0"]) {
+    this.accessories[0].updateState(report["channel_0"]);
+  }
 
-DuplexLightSwitchParser.prototype.initFromDeviceReportEvent = function (event, remote) {
-  var deviceId = event['sid'];
-  var gatewayId = this.platform.devices[deviceId].underGateway.id;
-  var switchKeyStates = JSON.parse(event['data']);
-  var switchKeys = ['channel_0', 'channel_1'];
-  var sideIdentifiers = ['L', 'R'];
-  var commanders = [this.commanders0, this.commanders1];
-
-  for (var index in switchKeys) {
-    if (switchKeys.hasOwnProperty(index)) {
-      var switchKey = switchKeys[index];
-      if (switchKey in switchKeyStates) {
-        // There are three states: on, off, unknown.
-        // We can't do anything when state is unknown, so just ignore it.
-        if (switchKeyStates[switchKey] === 'unknown') {
-          this.platform.log.warn("warn %s(sid:%s):%s's state is unknown, ignore it.", event['model'], deviceId, switchKey);
-        } else {
-          var turnedOn = (switchKeyStates[switchKey] === 'on');
-          var commander = this.parseInternal(deviceId, commanders[index], event['model'], switchKey, remote, turnedOn);
-          this.deviceSync.updateLightSwitch(gatewayId, deviceId, sideIdentifiers[index], turnedOn, commander);
-        }
-      }
-    }
+  if (report["channel_1"]) {
+    this.accessories[1].updateState(report["channel_1"]);
   }
 };
 
-DuplexLightSwitchParser.prototype.parseInternal = function (deviceId, commanders, deviceModel, switchKey, remote, turnedOn) {
+module.exports = function (accessory, platformAccessory, service, characteristic, uuid) {
+  Accessory = accessory;
+  PlatformAccessory = platformAccessory;
+  Service = service;
+  Characteristic = characteristic;
+  UUID = uuid;
 
-  var commander;
+  AccessoryManager = require("../accessory/manager")(Accessory, PlatformAccessory, Service, Characteristic, UUID);
 
-  if (deviceId in commanders) {
-    commander = commanders[deviceId];
-  } else {
-    commander = new SwitchCommander(this.platform, deviceId, deviceModel, switchKey);
-    commanders[deviceId] = commander;
-  }
-
-  commander.setCurrentValue(turnedOn);
-
-  return commander;
+  return MiAqaraDualSwitch;
 };

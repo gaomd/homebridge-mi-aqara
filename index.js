@@ -16,7 +16,7 @@ module.exports = function (homebridge) {
 
   MiAqaraOutlet = require("./devices/outlet")(Accessory, PlatformAccessory, Service, Characteristic, UUID);
   MiAqaraSwitch = require("./devices/switch")(Accessory, PlatformAccessory, Service, Characteristic, UUID);
-  // MiAqaraDualSwitch = require("./devices/switch-dual")(Accessory, PlatformAccessory, Service, Characteristic, UUID);
+  MiAqaraDualSwitch = require("./devices/switch-dual")(Accessory, PlatformAccessory, Service, Characteristic, UUID);
 
   homebridge.registerPlatform("homebridge-mi-aqara", "MiAqara", MiAqara);
 };
@@ -65,7 +65,7 @@ function MiAqara(log, config, api) {
   this.deviceClasses = {
     'plug': MiAqaraOutlet,                // 智能插座
     'ctrl_neutral1': MiAqaraSwitch,       // 墙壁开关（单键）
-    'ctrl_neutral2': MiAqaraSwitch        // 墙壁开关（双键）
+    'ctrl_neutral2': MiAqaraDualSwitch    // 墙壁开关（双键）
     // 'sensor_ht': new TemperatureAndHumidityParser(this),  // 温湿度传感器
     // 'motion': new MotionParser(this),                     // 人体传感器
     // 'magnet': new ContactParser(this),                    // 门窗传感器
@@ -91,7 +91,7 @@ function MiAqara(log, config, api) {
     }, 300 * 1000);
   });
 
-  this.scheduleDeviceAutoRemoval();
+  // this.scheduleDeviceAutoRemoval();
 }
 
 MiAqara.prototype.parseConfig = function (config) {
@@ -110,10 +110,11 @@ MiAqara.prototype.parseConfig = function (config) {
 };
 
 MiAqara.prototype.scheduleDeviceAutoRemoval = function () {
-  var deviceSync = this.deviceSync;
+  var platform = this;
+
   // Check removed accessory every half an hour.
   setInterval(function () {
-    deviceSync.removeOfflineAccessory();
+    platform.removeOfflineAccessory();
   }, 1800 * 1000);
 };
 
@@ -143,13 +144,13 @@ MiAqara.prototype.queryGateway = function (command, parameters, port, ip) {
     parameters = {};
   }
   var query = Object.assign(parameters, {cmd: command});
-  // this.log("queryGateway, data:", "`" + JSON.stringify(query) + "`", ", address:", ip || multicastAddress, ", port:", port || multicastPort);
+  this.log.debug("queryGateway, data:", "`" + JSON.stringify(query) + "`", ", address:", ip || multicastAddress, ", port:", port || multicastPort);
   server.send(JSON.stringify(query), port || multicastPort, ip || multicastAddress);
 };
 
 // Parse messages sent from gateways
 MiAqara.prototype.processGatewayEvent = function (event, gatewayIp) {
-  // this.log.debug("Received %s (%d bytes) from client %s:%d\n", event, event.length, gatewayIp.address, gatewayIp.port);
+  this.log.debug("Received %s (%d bytes) from client %s:%d\n", event, event.length, gatewayIp.address, gatewayIp.port);
 
   try {
     event = JSON.parse(event);
@@ -205,7 +206,14 @@ MiAqara.prototype.processGatewayEvent = function (event, gatewayIp) {
   }
 };
 
+/**
+ * Token is required in key generation, important!
+ * @param gatewayId
+ * @param token
+ */
 MiAqara.prototype.rememberGatewayToken = function (gatewayId, token) {
+  this.log.debug("Saved gateway token:", token);
+
   this.gateways[gatewayId] = {
     token: token
   };

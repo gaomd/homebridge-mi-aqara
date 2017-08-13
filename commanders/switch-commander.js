@@ -19,9 +19,9 @@ BaseCommander.prototype.setCurrentValue = function (value) {
   this.currentValue = value;
 };
 
-var SwitchCommander = function (platform, deviceId, deviceModel, switchKeyId) {
+var SwitchCommander = function (platform, deviceId, deviceModel, buttonId) {
   this.init(platform, deviceId, deviceModel);
-  this.buttonId = switchKeyId;
+  this.buttonId = buttonId;
 };
 
 inherits(SwitchCommander, BaseCommander);

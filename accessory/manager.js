@@ -2,12 +2,12 @@
 
 var Accessory, PlatformAccessory, Service, Characteristic, UUID;
 
-var AccessoryManager = function (platform, accessoryId, category, serviceType, switchCommander) {
+var AccessoryManager = function (platform, accessoryId, accessoryCategory, accessoryServiceType, switchCommander) {
   this.platform = platform;
   this.accessoryId = accessoryId;
   this.commander = switchCommander;
-  this.accessoryCategory = category;
-  this.accessoryServiceType = serviceType;
+  this.accessoryCategory = accessoryCategory;
+  this.accessoryServiceType = accessoryServiceType;
   this.accessoryCharacteristicType = Characteristic.On;
   this.accessory = this.platform.registerHomeKitAccessory(
     this.accessoryId,
