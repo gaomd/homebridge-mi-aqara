@@ -5,7 +5,7 @@ const multicastAddress = '224.0.0.50';
 const multicastPort = 4321;
 
 var Accessory, PlatformAccessory, Service, Characteristic, UUID;
-var MiAqaraOutlet, MiAqaraSwitch, MiAqaraDualSwitch;
+var MiAqaraOutlet, MiAqaraSwitch, MiAqaraDualSwitch, MiAqaraTempHumSensor;
 
 module.exports = function (homebridge) {
   Accessory = homebridge.hap.Accessory;
@@ -17,6 +17,7 @@ module.exports = function (homebridge) {
   MiAqaraOutlet = require("./devices/outlet")(Accessory, PlatformAccessory, Service, Characteristic, UUID);
   MiAqaraSwitch = require("./devices/switch")(Accessory, PlatformAccessory, Service, Characteristic, UUID);
   MiAqaraDualSwitch = require("./devices/switch-dual")(Accessory, PlatformAccessory, Service, Characteristic, UUID);
+  MiAqaraTempHumSensor = require("./devices/sensor-temp-hum")(Accessory, PlatformAccessory, Service, Characteristic, UUID);
 
   homebridge.registerPlatform("homebridge-mi-aqara", "MiAqara", MiAqara);
 };
@@ -65,8 +66,8 @@ function MiAqara(log, config, api) {
   this.deviceClasses = {
     'plug': MiAqaraOutlet,                // 智能插座
     'ctrl_neutral1': MiAqaraSwitch,       // 墙壁开关（单键）
-    'ctrl_neutral2': MiAqaraDualSwitch    // 墙壁开关（双键）
-    // 'sensor_ht': new TemperatureAndHumidityParser(this),  // 温湿度传感器
+    'ctrl_neutral2': MiAqaraDualSwitch,   // 墙壁开关（双键）
+    'sensor_ht': MiAqaraTempHumSensor,    // 温湿度传感器
     // 'motion': new MotionParser(this),                     // 人体传感器
     // 'magnet': new ContactParser(this),                    // 门窗传感器
   };
@@ -189,10 +190,10 @@ MiAqara.prototype.processGatewayEvent = function (event, gatewayIp) {
         this.queryGateway("read", {sid: deviceId}, gatewayIp.port, gatewayIp.address);
       }
     }
-  } else if (command === "read_ack") {
+  } else if (command === "read_ack" || command === "report") {
     var deviceModel = event['model'];
 
-    if (deviceModel in this.deviceClasses) {
+    if (this.deviceClasses[deviceModel]) {
       var instanceKey = deviceModel + ":" + event["sid"];
       if (!(instanceKey in this.onlineDevices)) {
         this.onlineDevices[instanceKey] = new this.deviceClasses[deviceModel](this, event["sid"], event["model"]);

@@ -2,13 +2,13 @@
 
 var Accessory, PlatformAccessory, Service, Characteristic, UUID;
 
-var AccessoryManager = function (platform, accessoryId, accessoryCategory, accessoryServiceType, switchCommander) {
+var AccessoryManager = function (platform, accessoryId, accessoryCategory, accessoryServiceType, accessoryCharacteristicType, switchCommander) {
   this.platform = platform;
   this.accessoryId = accessoryId;
   this.commander = switchCommander;
   this.accessoryCategory = accessoryCategory;
   this.accessoryServiceType = accessoryServiceType;
-  this.accessoryCharacteristicType = Characteristic.On;
+  this.accessoryCharacteristicType = accessoryCharacteristicType;
   this.accessory = this.platform.registerHomeKitAccessory(
     this.accessoryId,
     this.getAccessoryDisplayName(),
@@ -24,14 +24,22 @@ var AccessoryManager = function (platform, accessoryId, accessoryCategory, acces
   this.platform.log("Initialized accessory:", this.getAccessoryDisplayName());
 };
 
-AccessoryManager.prototype.updateState = function (value) {
-  this.commander.setCurrentValue((value === 'on'));
+AccessoryManager.prototype.setValueAndPushStateToHomeKitAccessory = function (value) {
   var state = this.accessory.getService(this.accessoryServiceType).getCharacteristic(this.accessoryCharacteristicType);
-  state.updateValue(this.commander.currentValue === 'on');
+  state.updateValue(value);
+};
+
+AccessoryManager.prototype.pushHomeKitAccessoryStateChangeToGatewayDevice = function(value) {
+  if (this.commander) {
+    // 1. blindly send target state to the device under gateway
+    this.commander.sendTargetState(value);
+
+    // 2. and ignore write_ack state
+  }
 };
 
 AccessoryManager.prototype.homeKitSetEventListener = function (value, homeKitCallback) {
-  this.commander.updateState(value);
+  this.pushHomeKitAccessoryStateChangeToGatewayDevice(value);
   homeKitCallback();
 };
 

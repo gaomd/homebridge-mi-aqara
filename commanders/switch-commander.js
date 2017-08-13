@@ -6,17 +6,12 @@ const iv = Buffer.from([0x17, 0x99, 0x6d, 0x09, 0x3d, 0x28, 0xdd, 0xb3, 0xba, 0x
 const inherits = require('util').inherits;
 
 var BaseCommander = function () {
-  this.currentValue = null;
 };
 
 BaseCommander.prototype.init = function (platform, deviceId, deviceModel) {
   this.platform = platform;
   this.deviceId = deviceId;
   this.deviceModel = deviceModel;
-};
-
-BaseCommander.prototype.setCurrentValue = function (value) {
-  this.currentValue = value;
 };
 
 var SwitchCommander = function (platform, deviceId, deviceModel, buttonId) {
@@ -26,16 +21,8 @@ var SwitchCommander = function (platform, deviceId, deviceModel, buttonId) {
 
 inherits(SwitchCommander, BaseCommander);
 
-SwitchCommander.prototype.updateState = function (on) {
+SwitchCommander.prototype.sendTargetState = function (on) {
   var platform = this.platform;
-
-  // Ignore duplicated command
-  // TODO Possible bug
-  if (this.currentValue === on) {
-    platform.log.debug("Value not changed, do nothing");
-    return;
-  }
-
   var gatewayId = platform.devices[this.deviceId].underGateway.id;
   var gatewayPassword = platform.gatewayCredentials[gatewayId];
   var cipher = crypto.createCipheriv('aes-128-cbc', gatewayPassword, iv);

@@ -1,35 +1,49 @@
-TemperatureAndHumidityParser.prototype.initFromDeviceReportEvent = function (event) {
-  var deviceId = event['sid'];
-  var gatewayId = this.platform.devices[deviceId].underGateway.id;
-  var data = JSON.parse(event['data']);
+"use strict";
 
-  var temperature = data['temperature'] / 100.0;
-  var humidity = data['humidity'] / 100.0;
-  this.deviceSync.updateTemperatureAndHumidity(gatewayId, deviceId, temperature, humidity);
-};
+var SwitchCommander = require("../commanders/switch-commander");
+var Accessory, PlatformAccessory, Service, Characteristic, UUID;
+var AccessoryManager;
 
-MiAqaraAccessories.prototype.updateTemperatureAndHumidity = function (gatewayId, deviceId, temperature, humidity) {
-  // Temperature
-  this.syncHome(
-    gatewayId,
-    deviceId,
-    this.getAccessoryDisplayName('SENSOR_TEM-' + deviceId),
-    UUID.generate('SENSOR_TEM-' + deviceId),
+var TempHumSensor = function (platform, deviceId, deviceModel) {
+  this.platform = platform;
+  this.deviceId = deviceId;
+  this.gateway = platform.findGatewayByDevice(this.deviceId);
+  this.accessories = [];
+  this.accessories[0] = new AccessoryManager(
+    platform,
+    deviceId + "-TEMP",
     Accessory.Categories.SENSOR,
     Service.TemperatureSensor,
     Characteristic.CurrentTemperature,
-    temperature,
-    null); // No commander
-
-  // Humidity
-  this.syncHome(
-    gatewayId,
-    deviceId,
-    this.getAccessoryDisplayName('SENSOR_HUM-' + deviceId),
-    UUID.generate('SENSOR_HUM-' + deviceId),
+    null
+  );
+  this.accessories[1] = new AccessoryManager(
+    platform,
+    deviceId + "-HUM",
     Accessory.Categories.SENSOR,
     Service.HumiditySensor,
     Characteristic.CurrentRelativeHumidity,
-    humidity,
-    null); // No commander
+    null
+  );
+};
+
+TempHumSensor.prototype.processDeviceReportEvent = function (event, gatewayIp) {
+  var report = JSON.parse(event['data']);
+  var temperature = report['temperature'] / 100.0;
+  var humidity = report['humidity'] / 100.0;
+
+  this.accessories[0].setValueAndPushStateToHomeKitAccessory(temperature);
+  this.accessories[1].setValueAndPushStateToHomeKitAccessory(humidity);
+};
+
+module.exports = function (accessory, platformAccessory, service, characteristic, uuid) {
+  Accessory = accessory;
+  PlatformAccessory = platformAccessory;
+  Service = service;
+  Characteristic = characteristic;
+  UUID = uuid;
+
+  AccessoryManager = require("../accessory/manager")(Accessory, PlatformAccessory, Service, Characteristic, UUID);
+
+  return TempHumSensor;
 };

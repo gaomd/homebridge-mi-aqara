@@ -14,6 +14,7 @@ var MiAqaraOutlet = function (platform, deviceId, deviceModel) {
     deviceId,
     Accessory.Categories.OUTLET,
     Service.Outlet,
+    Characteristic.On,
     new SwitchCommander(this.platform, this.deviceId, deviceModel, 'status')
   );
 };
@@ -27,7 +28,7 @@ MiAqaraOutlet.prototype.processDeviceReportEvent = function (event, gatewayIp) {
     return;
   }
 
-  this.accessories[0].updateState(report["status"]);
+  this.accessories[0].setValueAndPushStateToHomeKitAccessory(report["status"] === "on");
 };
 
 module.exports = function (accessory, platformAccessory, service, characteristic, uuid) {

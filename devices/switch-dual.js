@@ -14,6 +14,7 @@ var MiAqaraDualSwitch = function (platform, deviceId, deviceModel) {
     deviceId + "-L",
     Accessory.Categories.LIGHTBULB,
     Service.Lightbulb,
+    Characteristic.On,
     new SwitchCommander(this.platform, this.deviceId, deviceModel, 'channel_0')
   );
   this.accessories[1] = new AccessoryManager(
@@ -21,6 +22,7 @@ var MiAqaraDualSwitch = function (platform, deviceId, deviceModel) {
     deviceId + "-R",
     Accessory.Categories.LIGHTBULB,
     Service.Lightbulb,
+    Characteristic.On,
     new SwitchCommander(this.platform, this.deviceId, deviceModel, 'channel_1')
   );
 };
@@ -35,11 +37,11 @@ MiAqaraDualSwitch.prototype.processDeviceReportEvent = function (event, gatewayI
   }
 
   if (report["channel_0"]) {
-    this.accessories[0].updateState(report["channel_0"]);
+    this.accessories[0].setValueAndPushStateToHomeKitAccessory(report["channel_0"] === "on");
   }
 
   if (report["channel_1"]) {
-    this.accessories[1].updateState(report["channel_1"]);
+    this.accessories[1].setValueAndPushStateToHomeKitAccessory(report["channel_1"] === "on");
   }
 };
 
