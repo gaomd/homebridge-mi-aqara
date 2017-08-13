@@ -5,7 +5,7 @@ const multicastAddress = '224.0.0.50';
 const multicastPort = 4321;
 
 var Accessory, PlatformAccessory, Service, Characteristic, UUID;
-var MiAqaraOutlet;
+var MiAqaraOutlet, MiAqaraSwitch, MiAqaraDualSwitch;
 
 module.exports = function (homebridge) {
   Accessory = homebridge.hap.Accessory;
@@ -15,6 +15,8 @@ module.exports = function (homebridge) {
   UUID = homebridge.hap.uuid;
 
   MiAqaraOutlet = require("./devices/outlet")(Accessory, PlatformAccessory, Service, Characteristic, UUID);
+  MiAqaraSwitch = require("./devices/switch")(Accessory, PlatformAccessory, Service, Characteristic, UUID);
+  // MiAqaraDualSwitch = require("./devices/switch-dual")(Accessory, PlatformAccessory, Service, Characteristic, UUID);
 
   homebridge.registerPlatform("homebridge-mi-aqara", "MiAqara", MiAqara);
 };
@@ -61,13 +63,12 @@ function MiAqara(log, config, api) {
   };
 
   this.deviceClasses = {
+    'plug': MiAqaraOutlet,                // 智能插座
+    'ctrl_neutral1': MiAqaraSwitch,       // 墙壁开关（单键）
+    'ctrl_neutral2': MiAqaraSwitch        // 墙壁开关（双键）
     // 'sensor_ht': new TemperatureAndHumidityParser(this),  // 温湿度传感器
     // 'motion': new MotionParser(this),                     // 人体传感器
     // 'magnet': new ContactParser(this),                    // 门窗传感器
-    // 'ctrl_neutral1': new LightSwitchParser(this),         // 墙壁开关（单键）
-    // 'ctrl_neutral2': new DuplexLightSwitchParser(this),   // 墙壁开关（双键）
-    // 'plug': new PlugSwitchParser(this)                    // 智能插座
-    'plug': MiAqaraOutlet   // 智能插座
   };
 
   // Load gatewayCredentials from config.json
