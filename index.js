@@ -262,7 +262,7 @@ MiAqara.prototype.removeOfflineAccessory = function () {
   }
 };
 
-MiAqara.prototype.registerHomeKitAccessory = function (deviceIdAsSerialNumber,
+MiAqara.prototype.registerHomeKitAccessory = function (accessoryIdAsSerialNumber,
                                                        accessoryDisplayName,
                                                        accessoryUUID,
                                                        accessoryCategory,
@@ -286,7 +286,7 @@ MiAqara.prototype.registerHomeKitAccessory = function (deviceIdAsSerialNumber,
     accessory.getService(Service.AccessoryInformation)
       .setCharacteristic(Characteristic.Manufacturer, "Mi Aqara")
       .setCharacteristic(Characteristic.Model, this.getAccessoryCommonName(accessoryServiceType))
-      .setCharacteristic(Characteristic.SerialNumber, deviceIdAsSerialNumber);
+      .setCharacteristic(Characteristic.SerialNumber, accessoryIdAsSerialNumber);
     accessory.addService(accessoryServiceType, serviceName);
 
     this.api.registerPlatformAccessories("homebridge-mi-aqara", "MiAqara", [accessory]);

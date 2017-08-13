@@ -2,30 +2,20 @@
 
 var SwitchCommander = require("../commanders/switch-commander");
 var Accessory, PlatformAccessory, Service, Characteristic, UUID;
+var AccessoryManager;
 
 var MiAqaraSwitch = function (platform, deviceId, deviceModel) {
   this.platform = platform;
   this.deviceId = deviceId;
   this.gateway = platform.findGatewayByDevice(this.deviceId);
-  this.commander = new SwitchCommander(this.platform, this.deviceId, deviceModel, 'channel_0');
-  // this.accessoryCategory = Accessory.Categories.FAN;
-  // this.accessoryServiceType = Service.Fan;
-  this.accessoryCategory = Accessory.Categories.LIGHTBULB;
-  this.accessoryServiceType = Service.Lightbulb;
-  this.accessoryCharacteristicType = Characteristic.On;
-  this.accessory = this.platform.registerHomeKitAccessory(
-    this.deviceId,
-    this.getAccessoryDisplayName(this.deviceId) + "-L",
-    this.getAccessoryUUID(this.deviceId + "-L"),
-    this.accessoryCategory,
-    this.accessoryServiceType,
-    this.accessoryCharacteristicType
+  this.accessories = [];
+  this.accessories[0] = new AccessoryManager(
+    platform,
+    deviceId + "-L",
+    Accessory.Categories.LIGHTBULB,
+    Service.Lightbulb,
+    new SwitchCommander(this.platform, this.deviceId, deviceModel, 'channel_0')
   );
-
-  var characteristic = this.accessory.getService(this.accessoryServiceType).getCharacteristic(this.accessoryCharacteristicType);
-  characteristic.on("set", this.homeKitSetEventListener.bind(this));
-
-  this.platform.log("Initialized:", this.getAccessoryDisplayName(this.deviceId + "-L"));
 };
 
 MiAqaraSwitch.prototype.processDeviceReportEvent = function (event, gatewayIp) {
@@ -37,30 +27,7 @@ MiAqaraSwitch.prototype.processDeviceReportEvent = function (event, gatewayIp) {
     return;
   }
 
-  this.updateState(report["channel_0"]);
-};
-
-MiAqaraSwitch.prototype.updateState = function (value) {
-  this.commander.setCurrentValue((value === 'on'));
-  var state = this.accessory.getService(this.accessoryServiceType).getCharacteristic(this.accessoryCharacteristicType);
-  state.updateValue(this.commander.currentValue === 'on');
-};
-
-MiAqaraSwitch.prototype.homeKitSetEventListener = function (value, homeKitCallback) {
-  this.commander.updateState(value);
-  homeKitCallback();
-};
-
-MiAqaraSwitch.prototype.getAccessoryDisplayName = function (accessoryId) {
-  if (this.platform.deviceOverrides[accessoryId] && this.platform.deviceOverrides[accessoryId].name) {
-    return this.platform.deviceOverrides[accessoryId].name;
-  }
-
-  return accessoryId;
-};
-
-MiAqaraSwitch.prototype.getAccessoryUUID = function (accessoryId) {
-  return UUID.generate(accessoryId);
+  this.accessories[0].updateState(report["channel_0"]);
 };
 
 module.exports = function (accessory, platformAccessory, service, characteristic, uuid) {
@@ -69,6 +36,8 @@ module.exports = function (accessory, platformAccessory, service, characteristic
   Service = service;
   Characteristic = characteristic;
   UUID = uuid;
+
+  AccessoryManager = require("../accessory/manager")(Accessory, PlatformAccessory, Service, Characteristic, UUID);
 
   return MiAqaraSwitch;
 };
