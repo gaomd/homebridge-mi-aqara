@@ -32,8 +32,8 @@ TempHumSensor.prototype.processDeviceReportEvent = function (event, gatewayIp) {
   var temperature = report['temperature'] / 100.0;
   var humidity = report['humidity'] / 100.0;
 
-  this.accessories[0].setValueAndPushStateToHomeKitAccessory(temperature);
-  this.accessories[1].setValueAndPushStateToHomeKitAccessory(humidity);
+  this.accessories[0].setValue(temperature);
+  this.accessories[1].setValue(humidity);
 };
 
 module.exports = function (accessory, platformAccessory, service, characteristic, uuid) {

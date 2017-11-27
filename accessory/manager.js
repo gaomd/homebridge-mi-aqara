@@ -17,19 +17,28 @@ var AccessoryManager = function (platform, accessoryId, accessoryCategory, acces
     this.accessoryServiceType,
     this.accessoryCharacteristicType
   );
+  this.value = null;
 
   var characteristic = this.accessory.getService(this.accessoryServiceType).getCharacteristic(this.accessoryCharacteristicType);
-  characteristic.on("set", this.homeKitSetEventListener.bind(this));
+  if (this.accessoryCharacteristicType !== Characteristic.CurrentRelativeHumidity) {
+    characteristic.on("set", this.homeKitSetEventListener.bind(this));
+  }
+  characteristic.on("get", this.homeKitGetEventListener.bind(this));
 
   this.platform.log("Initialized accessory:", this.getAccessoryDisplayName());
 };
 
+AccessoryManager.prototype.setValue = function (value) {
+  this.value = value;
+};
+
 AccessoryManager.prototype.setValueAndPushStateToHomeKitAccessory = function (value) {
+  this.value = value;
   var state = this.accessory.getService(this.accessoryServiceType).getCharacteristic(this.accessoryCharacteristicType);
   state.updateValue(value);
 };
 
-AccessoryManager.prototype.pushHomeKitAccessoryStateChangeToGatewayDevice = function(value) {
+AccessoryManager.prototype.syncHomeKitAccessoryStateChangeToGatewayDevice = function (value) {
   if (this.commander) {
     // 1. blindly send target state to the device under gateway
     this.commander.sendTargetState(value);
@@ -38,9 +47,14 @@ AccessoryManager.prototype.pushHomeKitAccessoryStateChangeToGatewayDevice = func
   }
 };
 
-AccessoryManager.prototype.homeKitSetEventListener = function (value, homeKitCallback) {
-  this.pushHomeKitAccessoryStateChangeToGatewayDevice(value);
-  homeKitCallback();
+AccessoryManager.prototype.homeKitSetEventListener = function (value, callback) {
+  this.syncHomeKitAccessoryStateChangeToGatewayDevice(value);
+  callback();
+};
+
+AccessoryManager.prototype.homeKitGetEventListener = function (callback) {
+  console.log("------------------------ ", this.value);
+  callback(null, this.value || 0);
 };
 
 AccessoryManager.prototype.getAccessoryDisplayName = function () {
