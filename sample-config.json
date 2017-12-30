@@ -1,20 +1,17 @@
 {
-    "platforms": [
-        {
-            "platform": "MiAqara",
-            "hub_mac_address": ["112233445566"],
-            "hub_password": ["password"],
-            "set_overrides": {
-                "OUTLET-{ID1}":{"name": "厨房侧灯"},
-                "SWITCH-{ID2}-L":{"name": "厨房灯"},
-                "SWITCH-{ID2}-R":{"name": "卧室灯"},
-                "SWITCH-{ID3}-L":{"name": "卫生间灯"},
-                "SWITCH-{ID3}-R":{"name": "卫生间排风扇", "category_override": "FAN", "service_override": "Fan"},
-                "SENSOR_TEM-ID4":{"name": "温度"},
-                "SENSOR_HUM-ID4":{"name": "湿度"},
-                "SENSOR_MOTION-ID5":{"name": "人体传感器"},
-                "SENSOR_MOTION-ID6":{"name": "人体传感器"}
-            }
-        }
-    ]
+  "platforms": [
+    {
+      "platform": "MiAqara",
+      "gateway_mac_addresses": ["11:22:33:44:55:66"],
+      "gateway_passwords": ["password"],
+      "device_overrides": {
+        "{ID1}":{"name": "厨房油烟机"},
+        "{ID2}":{"name": "厨房灯带"},
+        "{ID3}-L":{"name": "厨房灯"},
+        "{ID3}-R":{"name": "卧室灯"},
+        "{ID4}-TEMP":{"name": "温度"},
+        "{ID4}-HUM":{"name": "湿度"}
+      }
+    }
+  ]
 }
