@@ -5,12 +5,12 @@
       "gateway_mac_addresses": ["11:22:33:44:55:66"],
       "gateway_passwords": ["password"],
       "device_overrides": {
-        "{ID1}":{"name": "厨房油烟机"},
-        "{ID2}":{"name": "厨房灯带"},
-        "{ID3}-L":{"name": "厨房灯"},
-        "{ID3}-R":{"name": "卧室灯"},
-        "{ID4}-TEMP":{"name": "温度"},
-        "{ID4}-HUM":{"name": "湿度"}
+        "{ID1}": {"name": "厨房油烟机"},
+        "{ID2}": {"name": "厨房灯带"},
+        "{ID3}-L": {"name": "厨房灯"},
+        "{ID3}-R": {"name": "卧室灯"},
+        "{ID4}-TEMP": {"name": "温度"},
+        "{ID4}-HUM": {"name": "湿度"}
       }
     }
   ]
